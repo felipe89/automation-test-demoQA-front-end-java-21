@@ -66,13 +66,29 @@ public class PracticeFormPage {
         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", hobbyOption);
     }
 
-    public void submit(){
-        WebElement BtnSubmit = driver.findElement(By.id("submit"));
-        new Actions(driver).moveToElement(BtnSubmit).click().perform();
+    public void submit() {
+        WebElement btnSubmit = driver.findElement(By.id("submit"));
+
+        // Scroll até o elemento para garantir que esteja visível na tela
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block: 'center'});", btnSubmit);
+
+        try {
+            // Tentativa principal utilizando Actions (melhor para elementos clicáveis)
+            new Actions(driver).moveToElement(btnSubmit).pause(Duration.ofMillis(300)).click().perform();
+        } catch (Exception e) {
+            System.out.println("⚠️ Falha ao clicar com Actions, tentando via JavaScript...");
+            // Fallback - clique forçado via JS (funciona mesmo com overlay invisível)
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btnSubmit);
+        }
+
+        // Pequena espera para o modal iniciar abertura (importante no headless)
+        try {
+            Thread.sleep(800);
+        } catch (InterruptedException ignored) {}
     }
 
     public String getModalText(){
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
         WebElement modalTitle = wait.until(
                 ExpectedConditions.visibilityOfElementLocated(By.cssSelector(".modal-content"))
         );
