@@ -5,6 +5,7 @@ import io.cucumber.java.Before;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 
 
 public class TestHooks {
@@ -13,9 +14,29 @@ public class TestHooks {
 
     @Before
     public void setup(){
+
         WebDriverManager.chromedriver().setup();
-        WebDriver wd = new ChromeDriver();
+
+        ChromeOptions options = new ChromeOptions();
+
+    // Verifica se deve rodar em modo headless (ex: CI/CD)
+        if (System.getProperty("headless") != null && System.getProperty("headless").equals("true")) {
+            options.addArguments("--headless=new");
+            System.out.println("🔧 Executando testes em modo HEADLESS");
+        } else {
+            System.out.println("🖥️ Executando testes com interface gráfica");
+        }
+
+        // Argumentos necessários para modo headless no GitHub Actions
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--disable-extensions");
+        options.addArguments("--remote-allow-origins=*");
+
+        WebDriver wd = new ChromeDriver(options);
         wd.manage().window().maximize();
+
         driver.set(wd);
     }
 

@@ -1,79 +1,54 @@
-name: CI - API / UI Tests
+name: CI - Execução dos testes DemoQA
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ "main" ]
 
 jobs:
-  test:
+  tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-
-    strategy:
-      matrix:
-        java: [ '21' ]
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout do código
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up JDK ${{ matrix.java }}
+      - name: 🧰 Instalar dependências do Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          sudo apt-get install -y wget gnupg2
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: 🔧 Configurar ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
+
+      - name: ☕ Instalar Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.java }}
+          java-version: '21'
 
-      - name: Cache local Maven repository
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-
-
-      - name: Print Java and Maven info
+      - name: 🔍 Verificar instalação
         run: |
+          google-chrome --version
+          chromedriver --version
           java -version
-          mvn -v
 
-      - name: Run UI tests (Maven)
-        # export DISPLAY required only if you need Xvfb; Chrome headless should work without Xvfb
+      - name: 🧪 Executar testes com Maven
+        env:
+          HEADLESS: true
         run: |
-          mvn -B -DskipTests=false test
-        # if tests fail, we still want to collect reports; do not use `continue-on-error: true`
-        # the job will stop on failure but the "Upload artifacts" steps below run in `post` if you use a separate job or
-        # we will use the `if: always()` condition to upload artifacts
+          mvn clean test -Dtest="RunCucumberTest" -Dheadless=true
 
-      - name: Gather test artifacts (always)
-        if: always()
-        run: |
-          echo "Artifacts folder contents:"
-          ls -la target || true
-          mkdir -p test-artifacts
-          # copy common test outputs if exist
-          cp -r target/cucumber-report.html test-artifacts/ 2>/dev/null || true
-          cp -r target/cucumber.json test-artifacts/ 2>/dev/null || true
-          cp -r target/surefire-reports test-artifacts/ 2>/dev/null || true
-          cp -r target/cucumber-report/* test-artifacts/ 2>/dev/null || true
-          # screenshots directory (if your tests save screenshots to ./target/screenshots)
-          cp -r target/screenshots test-artifacts/ 2>/dev/null || true
-          ls -la test-artifacts || true
-
-      - name: Upload test artifacts
+      - name: 📊 Salvar Relatórios dos Testes
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-artifacts-${{ github.run_number }}-${{ github.run_id }}
-          path: test-artifacts
+          name: cucumber-reports
+          path: target/
 
-      - name: Upload full Maven target (optional)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: target-folder-${{ github.run_number }}
-          path: target
